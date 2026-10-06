@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { verifyToken } from "../lib/jwt.js";
+import { userInclude } from "../lib/serialize.js";
 
 function unauthorized(res) {
   return res.status(401).json({ error: "unauthorized" });
@@ -18,7 +19,7 @@ export async function requireAuth(req, res, next) {
   }
   if (!payload || typeof payload.sub !== "string") return unauthorized(res);
 
-  const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+  const user = await prisma.user.findUnique({ where: { id: payload.sub }, include: userInclude });
   if (!user) return unauthorized(res);
 
   req.user = user;

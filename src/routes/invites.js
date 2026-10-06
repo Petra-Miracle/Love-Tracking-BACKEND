@@ -3,7 +3,13 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { safeTrigger, userChannel } from "../lib/pusher.js";
-import { serializeCouple, serializeStatus, serializeUser } from "../lib/serialize.js";
+import {
+  publicBaseUrl,
+  serializeCouple,
+  serializeStatus,
+  serializeUser,
+  userInclude,
+} from "../lib/serialize.js";
 import { HttpError, formatZodError } from "../lib/errors.js";
 
 const router = Router();
@@ -104,19 +110,21 @@ router.post("/accept", async (req, res) => {
   });
 
   const [inviter, acceptor] = await Promise.all([
-    prisma.user.findUnique({ where: { id: inviterId }, include: { status: true } }),
-    prisma.user.findUnique({ where: { id: me.id }, include: { status: true } }),
+    prisma.user.findUnique({ where: { id: inviterId }, include: { status: true, ...userInclude } }),
+    prisma.user.findUnique({ where: { id: me.id }, include: { status: true, ...userInclude } }),
   ]);
+
+  const baseUrl = publicBaseUrl(req);
 
   await safeTrigger(userChannel(inviterId), "couple-paired", {
     couple: serializeCouple(couple),
-    partner: serializeUser(acceptor),
+    partner: serializeUser(acceptor, baseUrl),
     partnerStatus: serializeStatus(acceptor.status),
   });
 
   res.json({
     couple: serializeCouple(couple),
-    partner: serializeUser(inviter),
+    partner: serializeUser(inviter, baseUrl),
     partnerStatus: serializeStatus(inviter.status),
   });
 });

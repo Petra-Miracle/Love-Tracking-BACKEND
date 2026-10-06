@@ -79,6 +79,7 @@ npx vercel --prod
 | `JWT_SECRET` | **Harus sama** dengan yang dipakai sebelumnya, kalau tidak semua token lama jadi invalid. |
 | `GOOGLE_WEB_CLIENT_ID` | Client ID tipe *Web application*. |
 | `PUSHER_APP_ID`, `PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER` | Dari tab *App Keys* Pusher. |
+| `PUBLIC_BASE_URL` | `https://<project>.vercel.app` (tanpa `/` di akhir). Dipakai untuk membentuk URL foto profil. |
 
 Setelah mengubah env var, lakukan **Redeploy** agar nilainya terpakai.
 
@@ -112,6 +113,10 @@ Semua endpoint kecuali `GET /health` dan `POST /auth/google` wajib header `Autho
 | GET | `/health` | 200 `{ ok: true }` | — |
 | POST | `/auth/google` | 200 `{ token, user }` | 400 `invalid_body`, 401 `invalid_google_token` |
 | GET | `/me` | 200 `{ user, couple, partner, partnerStatus, myStatus }` | 401 |
+| PATCH | `/me` | 200 `{ user }` — body `{ name }` (1–40 karakter) | 400 `invalid_body` |
+| PUT | `/me/photo` | 200 `{ user }` — raw body JPEG/PNG/WebP ≤ 1 MB | 400 `invalid_body`, 413 `payload_too_large`, 415 `unsupported_media_type` |
+| DELETE | `/me/photo` | 200 `{ user }` (kembali ke foto Google) | — |
+| GET | `/users/:userId/photo` | 200 bytes gambar (**publik**, tanpa auth, cache 1 tahun) | 404 `not_found` |
 | POST | `/invites` | 201 `{ code, expiresAt, link }` | 409 `already_paired` |
 | POST | `/invites/accept` | 200 `{ couple, partner, partnerStatus }` | 400 `own_invite`, 404 `invite_not_found`, 409 `already_paired` |
 | DELETE | `/couple` | 204 | 404 `not_paired` |
@@ -126,6 +131,7 @@ Error tambahan yang bersifat umum: `404 not_found` (path tidak dikenal), `413 pa
 | ------- | ----- | ---- | ------ |
 | `private-couple-{coupleId}` | `status-updated` | Status | `PUT /status` |
 | `private-couple-{coupleId}` | `couple-unpaired` | `{}` | `DELETE /couple` |
+| `private-couple-{coupleId}` | `profile-updated` | `{ user }` | `PATCH /me`, `PUT`/`DELETE /me/photo` |
 | `private-user-{userId}` | `couple-paired` | `{ couple, partner, partnerStatus }` | `POST /invites/accept` (ke pengundang) |
 | `private-user-{userId}` | `couple-unpaired` | `{}` | `DELETE /couple` (ke pasangan) |
 
@@ -134,6 +140,7 @@ Kegagalan Pusher hanya dicatat di log; request tetap sukses.
 ### Catatan perilaku
 
 - **Pairing aman dari race condition:** invite "diklaim" dengan `DELETE ... WHERE code AND expiresAt > now` dan kedua user di-update dengan `WHERE coupleId IS NULL` di dalam satu transaksi (urutan id konsisten untuk mencegah deadlock). Jika salah satu gagal, seluruh transaksi di-rollback, jadi satu pasangan tidak mungkin berisi lebih dari 2 orang.
+- **Foto profil:** `photoUrl` milik User berisi `<PUBLIC_BASE_URL>/users/<id>/photo?v=<timestamp>` jika user mengunggah foto, selain itu foto Google. Nama yang diganti lewat `PATCH /me` tidak ditimpa saat login ulang.
 - **Privasi:** saat `sharingPaused = true`, `lat/lng/accuracy/speed/heading` disimpan sebagai `null`. Saat unpair, `Status` kedua user dihapus. `/pusher/auth` hanya mengizinkan `private-user-{diri sendiri}` dan `private-couple-{pasangan sendiri}`.
 - **Rate limit `PUT /status`:** maks. 1 request / 2 detik per user, disimpan di memori per instance. Di serverless ini bersifat *best-effort* (instance berbeda tidak berbagi hitungan).
 

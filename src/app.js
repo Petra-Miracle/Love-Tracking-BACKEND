@@ -8,10 +8,13 @@ import inviteRoutes from "./routes/invites.js";
 import coupleRoutes from "./routes/couple.js";
 import statusRoutes from "./routes/status.js";
 import pusherRoutes from "./routes/pusher.js";
+import userRoutes from "./routes/users.js";
 
 const app = express();
 
 app.disable("x-powered-by");
+// Di Vercel request datang lewat proxy; perlu agar req.protocol = "https" (fallback URL foto).
+app.set("trust proxy", true);
 
 app.use(cors());
 app.use(express.json({ limit: "16kb" }));
@@ -22,6 +25,7 @@ app.get("/", (req, res) => res.json({ name: "Love Tracking API", ok: true }));
 app.get("/favicon.ico", (req, res) => res.status(204).end());
 app.get("/health", (req, res) => res.json({ ok: true }));
 app.use("/auth", authRoutes);
+app.use("/users", userRoutes);
 
 // Wajib JWT
 app.use("/me", requireAuth, meRoutes);

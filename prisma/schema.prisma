@@ -10,19 +10,30 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  googleId  String   @unique
-  email     String   @unique
-  name      String
-  photoUrl  String?
-  coupleId  String?
-  couple    Couple?  @relation(fields: [coupleId], references: [id], onDelete: SetNull)
-  status    Status?
-  invite    Invite?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String     @id @default(cuid())
+  googleId       String     @unique
+  email          String     @unique
+  name           String
+  photoUrl       String? // foto dari Google (diisi saat login)
+  nameCustomized Boolean    @default(false) // true setelah user mengganti nama sendiri
+  photo          UserPhoto?
+  coupleId       String?
+  couple         Couple?    @relation(fields: [coupleId], references: [id], onDelete: SetNull)
+  status         Status?
+  invite         Invite?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   @@index([coupleId])
+}
+
+/// Foto profil yang diunggah user sendiri (sudah dikompres oleh aplikasi, ±20–150 KB).
+model UserPhoto {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mimeType  String // image/jpeg | image/png | image/webp
+  data      Bytes
+  updatedAt DateTime @updatedAt
 }
 
 model Couple {
