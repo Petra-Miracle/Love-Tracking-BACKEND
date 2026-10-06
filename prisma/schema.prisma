@@ -1,0 +1,58 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  googleId  String   @unique
+  email     String   @unique
+  name      String
+  photoUrl  String?
+  coupleId  String?
+  couple    Couple?  @relation(fields: [coupleId], references: [id], onDelete: SetNull)
+  status    Status?
+  invite    Invite?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([coupleId])
+}
+
+model Couple {
+  id        String   @id @default(cuid())
+  members   User[]
+  createdAt DateTime @default(now())
+}
+
+model Invite {
+  code      String   @id // 6 karakter dari alfabet tanpa karakter ambigu
+  inviterId String   @unique // 1 invite aktif per user
+  inviter   User     @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// Hanya status TERAKHIR per user (tidak menyimpan riwayat lokasi).
+model Status {
+  userId           String   @id
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lat              Float?
+  lng              Float?
+  accuracy         Float?
+  speed            Float? // m/s
+  heading          Float? // derajat
+  battery          Int? // 0-100
+  batteryState     String   @default("unknown") // charging | discharging | full | unknown
+  networkType      String   @default("none") // wifi | mobile | ethernet | vpn | other | none
+  carrier          String? // contoh: "Telkomsel"
+  mobileNetworkGen String? // 2G | 3G | 4G | 5G | null
+  sharingPaused    Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
+}
